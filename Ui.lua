@@ -1,14 +1,13 @@
 --[[
     Proton UI - Interface do Menu
     GitHub: DavizeraXxx/Proton-Ui
-    Versão: 2.2
+    Versão: 3.0
 ]]
 
 local ProtonUI = {
     Open = true,
     SelectedCategory = "Aimbot",
     GUI = {},
-    Callbacks = {},
     Options = {
         Aimbot = false,
         AimbotFOV = 100,
@@ -17,8 +16,7 @@ local ProtonUI = {
         ESPGun = false,
         Noclip = false,
         TargetPlayer = nil
-    },
-    Elements = {}
+    }
 }
 
 -- Serviços
@@ -31,8 +29,9 @@ local LocalPlayer = Players.LocalPlayer
 -- ======================
 -- UTILITÁRIOS
 -- ======================
-local function createTween(instance, properties, duration, easingStyle, easingDirection)
-    local tweenInfo = TweenInfo.new(duration or 0.3, easingStyle or Enum.EasingStyle.Quad, easingDirection or Enum.EasingDirection.Out)
+local function createTween(instance, properties, duration)
+    duration = duration or 0.3
+    local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
     return TweenService:Create(instance, tweenInfo, properties)
 end
 
@@ -45,7 +44,7 @@ function ProtonUI:Notify(text, duration)
     notif.BackgroundTransparency = 0
     notif.BorderSizePixel = 0
     notif.Size = UDim2.new(0, 250, 0, 40)
-    notif.Position = UDim2.new(1, -260, 0, 10)
+    notif.Position = UDim2.new(1, 10, 0, 10)
     notif.AnchorPoint = Vector2.new(1, 0)
     notif.ZIndex = 10
     notif.Parent = self.GUI.ScreenGui
@@ -65,23 +64,24 @@ function ProtonUI:Notify(text, duration)
     label.Text = text
     label.Parent = notif
 
+    -- Animar entrada
     notif.Position = UDim2.new(1, 10, 0, 10)
-    local appearTween = createTween(notif, {Position = UDim2.new(1, -260, 0, 10)}, 0.3)
-    appearTween:Play()
+    local appear = createTween(notif, {Position = UDim2.new(1, -260, 0, 10)}, 0.3)
+    appear:Play()
 
     task.delay(duration, function()
         if notif.Parent then
-            local disappearTween = createTween(notif, {Position = UDim2.new(1, 10, 0, 10)}, 0.3)
-            disappearTween:Play()
-            disappearTween.Completed:Connect(function() notif:Destroy() end)
+            local disappear = createTween(notif, {Position = UDim2.new(1, 10, 0, 10)}, 0.3)
+            disappear:Play()
+            disappear.Completed:Connect(function() notif:Destroy() end)
         end
     end)
 end
 
 -- ======================
--- COMPONENTES UI
+-- COMPONENTES
 -- ======================
-function ProtonUI:CreateToggle(parent, text, default, callback, optionKey)
+function ProtonUI:CreateToggle(parent, text, default, callback)
     local frame = Instance.new("Frame", parent)
     frame.Size = UDim2.new(1, -20, 0, 30)
     frame.BackgroundTransparency = 1
@@ -111,33 +111,21 @@ function ProtonUI:CreateToggle(parent, text, default, callback, optionKey)
     Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
 
     local state = default
-    local toggleRef = {
-        Button = button,
-        Knob = knob,
-        Label = label,
-        State = state,
-        SetState = function(newState)
-            state = newState
-            local targetColor = state and Color3.fromRGB(30, 58, 95) or Color3.fromRGB(60, 60, 60)
-            local targetPos = state and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
-            createTween(button, {BackgroundColor3 = targetColor}, 0.2):Play()
-            createTween(knob, {Position = targetPos}, 0.2):Play()
-            if callback then callback(state) end
-        end
-    }
-
+    
     button.MouseButton1Click:Connect(function()
-        toggleRef:SetState(not state)
+        state = not state
+        if callback then callback(state) end
+        
+        local targetColor = state and Color3.fromRGB(30, 58, 95) or Color3.fromRGB(60, 60, 60)
+        local targetPos = state and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
+        createTween(button, {BackgroundColor3 = targetColor}, 0.2):Play()
+        createTween(knob, {Position = targetPos}, 0.2):Play()
     end)
 
-    if optionKey then
-        self.Elements[optionKey] = toggleRef
-    end
-
-    return frame, toggleRef
+    return frame
 end
 
-function ProtonUI:CreateSlider(parent, text, min, max, default, callback, optionKey)
+function ProtonUI:CreateSlider(parent, text, min, max, default, callback)
     local frame = Instance.new("Frame", parent)
     frame.Size = UDim2.new(1, -20, 0, 50)
     frame.BackgroundTransparency = 1
@@ -173,16 +161,6 @@ function ProtonUI:CreateSlider(parent, text, min, max, default, callback, option
 
     local dragging = false
     local currentValue = default
-    local sliderRef = {
-        SetValue = function(val)
-            currentValue = val
-            local relX = (val - min) / (max - min)
-            fill.Size = UDim2.new(relX, 0, 1, 0)
-            thumb.Position = UDim2.new(relX, -8, 0.5, -8)
-            label.Text = text .. ": " .. val
-            if callback then callback(val) end
-        end
-    }
 
     local function updateSlider(input)
         local pos = input.Position.X
@@ -190,35 +168,44 @@ function ProtonUI:CreateSlider(parent, text, min, max, default, callback, option
         local barWidth = bar.AbsoluteSize.X
         local relX = math.clamp((pos - barAbsPos) / barWidth, 0, 1)
         local val = math.floor(min + (max - min) * relX)
-        sliderRef:SetValue(val)
+        
+        currentValue = val
+        fill.Size = UDim2.new(relX, 0, 1, 0)
+        thumb.Position = UDim2.new(relX, -8, 0.5, -8)
+        label.Text = text .. ": " .. val
+        if callback then callback(val) end
     end
 
     thumb.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = true
-            input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
         end
     end)
     
     bar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = true
             updateSlider(input)
-            input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
         end
     end)
     
     UserInputService.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
             updateSlider(input)
         end
     end)
 
-    if optionKey then
-        self.Elements[optionKey] = sliderRef
-    end
-
-    return frame, sliderRef
+    return frame
 end
 
 function ProtonUI:CreateButton(parent, text, callback)
@@ -232,18 +219,22 @@ function ProtonUI:CreateButton(parent, text, callback)
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
 
     btn.MouseButton1Click:Connect(function()
-        local origSize = btn.Size
-        createTween(btn, {Size = UDim2.new(1, -20, 0, 28)}, 0.05):Play()
-        task.delay(0.05, function() createTween(btn, {Size = origSize}, 0.05):Play() end)
         if callback then callback() end
+        -- Efeito de clique
+        local orig = btn.Size
+        createTween(btn, {Size = UDim2.new(1, -20, 0, 28)}, 0.05):Play()
+        task.delay(0.05, function()
+            createTween(btn, {Size = orig}, 0.05):Play()
+        end)
     end)
 
-    btn.MouseEnter:Connect(function() 
-        createTween(btn, {BackgroundColor3 = Color3.fromRGB(40, 40, 40)}, 0.2):Play() 
+    btn.MouseEnter:Connect(function()
+        createTween(btn, {BackgroundColor3 = Color3.fromRGB(40, 40, 40)}, 0.2):Play()
     end)
-    btn.MouseLeave:Connect(function() 
-        createTween(btn, {BackgroundColor3 = Color3.fromRGB(30, 30, 30)}, 0.2):Play() 
+    btn.MouseLeave:Connect(function()
+        createTween(btn, {BackgroundColor3 = Color3.fromRGB(30, 30, 30)}, 0.2):Play()
     end)
+    
     return btn
 end
 
@@ -251,6 +242,7 @@ function ProtonUI:CreatePlayerList(parent, onSelect)
     local frame = Instance.new("Frame", parent)
     frame.Size = UDim2.new(1, -20, 0, 150)
     frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    frame.BackgroundTransparency = 0
     Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 4)
 
     local searchBox = Instance.new("TextBox", frame)
@@ -269,55 +261,71 @@ function ProtonUI:CreatePlayerList(parent, onSelect)
     listFrame.BackgroundTransparency = 1
     listFrame.ScrollBarThickness = 4
     listFrame.ScrollBarImageColor3 = Color3.fromRGB(30, 58, 95)
-    Instance.new("UIListLayout", listFrame).SortOrder = Enum.SortOrder.Name
+    
+    local layout = Instance.new("UIListLayout", listFrame)
+    layout.SortOrder = Enum.SortOrder.Name
 
     local function updateList(filter)
         for _, child in ipairs(listFrame:GetChildren()) do
             if child:IsA("TextButton") then child:Destroy() end
         end
+        
         for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and (filter == "" or player.Name:lower():find(filter:lower())) then
-                local btn = Instance.new("TextButton", listFrame)
-                btn.Size = UDim2.new(1, 0, 0, 24)
-                btn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-                btn.Font = Enum.Font.Gotham
-                btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-                btn.TextSize = 14
-                btn.Text = player.Name
-                btn.MouseButton1Click:Connect(function() 
-                    if onSelect then onSelect(player) end 
-                end)
+            if player ~= LocalPlayer then
+                local name = player.Name
+                if filter == "" or string.lower(name):find(string.lower(filter)) then
+                    local btn = Instance.new("TextButton", listFrame)
+                    btn.Size = UDim2.new(1, 0, 0, 24)
+                    btn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+                    btn.Font = Enum.Font.Gotham
+                    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+                    btn.TextSize = 14
+                    btn.Text = name
+                    btn.MouseButton1Click:Connect(function()
+                        if onSelect then onSelect(player) end
+                    end)
+                end
             end
         end
     end
 
     updateList("")
-    searchBox.Changed:Connect(function(prop) 
-        if prop == "Text" then updateList(searchBox.Text) end 
+    
+    searchBox.Changed:Connect(function(prop)
+        if prop == "Text" then
+            updateList(searchBox.Text)
+        end
     end)
-    Players.PlayerAdded:Connect(function() updateList(searchBox.Text) end)
-    Players.PlayerRemoving:Connect(function() updateList(searchBox.Text) end)
+    
+    Players.PlayerAdded:Connect(function()
+        updateList(searchBox.Text)
+    end)
+    
+    Players.PlayerRemoving:Connect(function()
+        updateList(searchBox.Text)
+    end)
 
     return frame
 end
 
 -- ======================
--- CONSTRUÇÃO DA INTERFACE
+-- CONSTRUIR MENU
 -- ======================
 function ProtonUI:CreateGUI()
+    -- Criar ScreenGui
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = "ProtonMenu"
     screenGui.ResetOnSpawn = false
     screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     screenGui.Parent = game:GetService("CoreGui")
+    self.GUI.ScreenGui = screenGui
 
+    -- Escala
     local uiScale = Instance.new("UIScale")
     uiScale.Scale = math.clamp(Camera.ViewportSize.X / 1920, 0.8, 1.2)
     uiScale.Parent = screenGui
 
-    self.GUI.ScreenGui = screenGui
-
-    -- Janela principal - Fundo 100% opaco
+    -- Janela principal
     local main = Instance.new("Frame")
     main.Size = UDim2.new(0, 600, 0, 400)
     main.Position = UDim2.new(0.5, -300, 0.5, -200)
@@ -327,12 +335,12 @@ function ProtonUI:CreateGUI()
     main.Parent = screenGui
     Instance.new("UICorner", main).CornerRadius = UDim.new(0, 8)
     
-    local mainStroke = Instance.new("UIStroke")
-    mainStroke.Color = Color3.fromRGB(30, 58, 95)
-    mainStroke.Thickness = 1.5
-    mainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    mainStroke.Parent = main
-
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(30, 58, 95)
+    stroke.Thickness = 1.5
+    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    stroke.Parent = main
+    
     self.GUI.MainFrame = main
 
     -- Barra de título
@@ -344,13 +352,15 @@ function ProtonUI:CreateGUI()
     titleBar.Parent = main
     Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 8)
 
-    local bottomLine = Instance.new("Frame")
-    bottomLine.Size = UDim2.new(1, 0, 0, 1)
-    bottomLine.Position = UDim2.new(0, 0, 1, 0)
-    bottomLine.BackgroundColor3 = Color3.fromRGB(30, 58, 95)
-    bottomLine.BorderSizePixel = 0
-    bottomLine.Parent = titleBar
+    -- Linha inferior
+    local line = Instance.new("Frame")
+    line.Size = UDim2.new(1, 0, 0, 1)
+    line.Position = UDim2.new(0, 0, 1, 0)
+    line.BackgroundColor3 = Color3.fromRGB(30, 58, 95)
+    line.BorderSizePixel = 0
+    line.Parent = titleBar
 
+    -- Título
     local titleLabel = Instance.new("TextLabel")
     titleLabel.BackgroundTransparency = 1
     titleLabel.Size = UDim2.new(0, 150, 1, 0)
@@ -362,6 +372,7 @@ function ProtonUI:CreateGUI()
     titleLabel.TextXAlignment = Enum.TextXAlignment.Left
     titleLabel.Parent = titleBar
 
+    -- Subtítulo
     local subLabel = Instance.new("TextLabel")
     subLabel.BackgroundTransparency = 1
     subLabel.Size = UDim2.new(0, 40, 1, 0)
@@ -373,7 +384,7 @@ function ProtonUI:CreateGUI()
     subLabel.TextXAlignment = Enum.TextXAlignment.Left
     subLabel.Parent = titleBar
 
-    -- Minimizar / Fechar
+    -- Botões de controle
     local minimizeBtn = Instance.new("TextButton")
     minimizeBtn.Size = UDim2.new(0, 24, 0, 24)
     minimizeBtn.Position = UDim2.new(1, -52, 0.5, -12)
@@ -390,15 +401,15 @@ function ProtonUI:CreateGUI()
     closeBtn.Text = "X"
     closeBtn.Parent = titleBar
 
-    -- Área de conteúdo
-    local contentFrame = Instance.new("Frame")
-    contentFrame.Size = UDim2.new(1, 0, 1, -30)
-    contentFrame.Position = UDim2.new(0, 0, 0, 30)
-    contentFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    contentFrame.BackgroundTransparency = 0
-    contentFrame.BorderSizePixel = 0
-    contentFrame.Parent = main
-    self.GUI.ContentFrame = contentFrame
+    -- Conteúdo
+    local content = Instance.new("Frame")
+    content.Size = UDim2.new(1, 0, 1, -30)
+    content.Position = UDim2.new(0, 0, 0, 30)
+    content.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    content.BackgroundTransparency = 0
+    content.BorderSizePixel = 0
+    content.Parent = main
+    self.GUI.ContentFrame = content
 
     -- Menu lateral
     local sideMenu = Instance.new("Frame")
@@ -406,11 +417,11 @@ function ProtonUI:CreateGUI()
     sideMenu.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
     sideMenu.BackgroundTransparency = 0
     sideMenu.BorderSizePixel = 0
-    sideMenu.Parent = contentFrame
+    sideMenu.Parent = content
     
-    local sideList = Instance.new("UIListLayout")
-    sideList.SortOrder = Enum.SortOrder.LayoutOrder
-    sideList.Parent = sideMenu
+    local sideLayout = Instance.new("UIListLayout")
+    sideLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    sideLayout.Parent = sideMenu
     self.GUI.SideMenu = sideMenu
 
     -- Área principal
@@ -420,7 +431,7 @@ function ProtonUI:CreateGUI()
     mainArea.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
     mainArea.BackgroundTransparency = 0
     mainArea.BorderSizePixel = 0
-    mainArea.Parent = contentFrame
+    mainArea.Parent = content
     self.GUI.MainArea = mainArea
 
     -- Rodapé
@@ -430,7 +441,7 @@ function ProtonUI:CreateGUI()
     footer.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
     footer.BackgroundTransparency = 0
     footer.BorderSizePixel = 0
-    footer.Parent = contentFrame
+    footer.Parent = content
     
     local footerLine = Instance.new("Frame")
     footerLine.Size = UDim2.new(1, 0, 0, 1)
@@ -438,6 +449,7 @@ function ProtonUI:CreateGUI()
     footerLine.BorderSizePixel = 0
     footerLine.Parent = footer
 
+    -- Informações do rodapé
     self.GUI.UsernameLabel = Instance.new("TextLabel", footer)
     self.GUI.UsernameLabel.Size = UDim2.new(0, 100, 1, 0)
     self.GUI.UsernameLabel.Font = Enum.Font.Gotham
@@ -473,50 +485,60 @@ function ProtonUI:CreateGUI()
     self.GUI.TimeLabel.BackgroundTransparency = 1
     self.GUI.TimeLabel.Text = "00:00:00"
 
-    -- Arrastar janela
+    -- Arrastar
     local dragStart, startPos
     titleBar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragStart = input.Position
             startPos = main.Position
-            local connection
-            connection = UserInputService.InputChanged:Connect(function(input2)
-                if input2 == input and (input2.UserInputType == Enum.UserInputType.MouseMovement or input2.UserInputType == Enum.UserInputType.Touch) then
+            local conn
+            conn = UserInputService.InputChanged:Connect(function(input2)
+                if input2 == input and input2.UserInputType == Enum.UserInputType.MouseMovement then
                     local delta = input2.Position - dragStart
-                    main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+                    main.Position = UDim2.new(
+                        startPos.X.Scale,
+                        startPos.X.Offset + delta.X,
+                        startPos.Y.Scale,
+                        startPos.Y.Offset + delta.Y
+                    )
                 end
             end)
             input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then connection:Disconnect() end
+                if input.UserInputState == Enum.UserInputState.End then
+                    conn:Disconnect()
+                end
             end)
         end
     end)
 
-    -- Minimizar/Restaurar
+    -- Minimizar
     local minimized = false
     local originalSize = main.Size
     minimizeBtn.MouseButton1Click:Connect(function()
         minimized = not minimized
         if minimized then
             createTween(main, {Size = UDim2.new(originalSize.X.Scale, originalSize.X.Offset, 0, 30)}, 0.3):Play()
-            contentFrame.Visible = false
+            content.Visible = false
         else
             createTween(main, {Size = originalSize}, 0.3):Play()
-            contentFrame.Visible = true
+            content.Visible = true
         end
     end)
 
-    closeBtn.MouseButton1Click:Connect(function() self:Close() end)
+    -- Fechar
+    closeBtn.MouseButton1Click:Connect(function()
+        self:Close()
+    end)
 
-    -- Construir categorias e primeira página
-    self:CreateCategoryButtons()
+    -- Construir categorias
+    self:BuildCategories()
     self:SwitchCategory("Aimbot")
 end
 
 -- ======================
--- CATEGORIAS E PÁGINAS
+-- CATEGORIAS
 -- ======================
-function ProtonUI:CreateCategoryButtons()
+function ProtonUI:BuildCategories()
     local sideMenu = self.GUI.SideMenu
     for _, child in ipairs(sideMenu:GetChildren()) do
         if child:IsA("TextButton") then child:Destroy() end
@@ -542,12 +564,16 @@ function ProtonUI:CreateCategoryButtons()
         btn.Text = cat.Icon .. "  " .. cat.Name
         btn.Parent = sideMenu
 
-        btn.MouseButton1Click:Connect(function() self:SwitchCategory(cat.Name) end)
+        btn.MouseButton1Click:Connect(function()
+            self:SwitchCategory(cat.Name)
+        end)
+        
         btn.MouseEnter:Connect(function()
             if self.SelectedCategory ~= cat.Name then
                 createTween(btn, {BackgroundColor3 = Color3.fromRGB(30, 58, 95)}, 0.2):Play()
             end
         end)
+        
         btn.MouseLeave:Connect(function()
             if self.SelectedCategory ~= cat.Name then
                 createTween(btn, {BackgroundColor3 = Color3.fromRGB(10, 10, 10)}, 0.2):Play()
@@ -558,12 +584,14 @@ end
 
 function ProtonUI:SwitchCategory(name)
     self.SelectedCategory = name
+    
+    -- Limpar área principal
     local mainArea = self.GUI.MainArea
     for _, child in ipairs(mainArea:GetChildren()) do
         child:Destroy()
     end
 
-    -- Destaque no menu lateral
+    -- Destacar botão ativo
     for _, btn in ipairs(self.GUI.SideMenu:GetChildren()) do
         if btn:IsA("TextButton") then
             if btn.Name == name then
@@ -572,7 +600,6 @@ function ProtonUI:SwitchCategory(name)
                     local line = Instance.new("Frame", btn)
                     line.Name = "LeftLine"
                     line.Size = UDim2.new(0, 3, 1, 0)
-                    line.Position = UDim2.new(0, 0, 0, 0)
                     line.BackgroundColor3 = Color3.fromRGB(100, 150, 255)
                     line.BorderSizePixel = 0
                 end
@@ -584,12 +611,7 @@ function ProtonUI:SwitchCategory(name)
         end
     end
 
-    -- Chamar callback se existir
-    if self.Callbacks[name] then
-        self.Callbacks[name]()
-    end
-
-    -- Construir páginas padrão
+    -- Construir página
     if name == "Aimbot" then self:BuildAimbotPage()
     elseif name == "ESP" then self:BuildESPPage()
     elseif name == "Teleport" then self:BuildTeleportPage()
@@ -605,20 +627,17 @@ function ProtonUI:BuildAimbotPage()
     local main = self.GUI.MainArea
     local y = 10
 
-    local aimbotState = self.Options.Aimbot or false
-    local fovValue = self.Options.AimbotFOV or 100
-
-    local toggle, toggleRef = self:CreateToggle(main, "Aimbot (Silent)", aimbotState, function(state)
+    local toggle = self:CreateToggle(main, "Aimbot (Silent)", self.Options.Aimbot, function(state)
         self.Options.Aimbot = state
         if self.OnToggleChange then self:OnToggleChange("Aimbot", state) end
-    end, "Aimbot")
+    end)
     toggle.Position = UDim2.new(0, 0, 0, y)
     y = y + 35
 
-    local slider, sliderRef = self:CreateSlider(main, "FOV", 10, 360, fovValue, function(val)
+    local slider = self:CreateSlider(main, "FOV", 10, 360, self.Options.AimbotFOV, function(val)
         self.Options.AimbotFOV = val
         if self.OnSliderChange then self:OnSliderChange("AimbotFOV", val) end
-    end, "AimbotFOV")
+    end)
     slider.Position = UDim2.new(0, 0, 0, y)
     y = y + 55
 
@@ -631,84 +650,83 @@ function ProtonUI:BuildAimbotPage()
     label.Text = "Alvo (opcional):"
     y = y + 25
 
-    self:CreatePlayerList(main, function(player)
+    local list = self:CreatePlayerList(main, function(player)
         self.Options.TargetPlayer = player
         self:Notify("Alvo: " .. player.Name, 2)
         if self.OnPlayerSelect then self:OnPlayerSelect(player) end
-    end).Position = UDim2.new(0, 10, 0, y)
+    end)
+    list.Position = UDim2.new(0, 10, 0, y)
 end
 
 function ProtonUI:BuildESPPage()
     local main = self.GUI.MainArea
     local y = 10
-    
-    local sheriffState = self.Options.ESPSheriff or false
-    local murderState = self.Options.ESPMurder or false
-    local gunState = self.Options.ESPGun or false
-    
-    local toggle1, ref1 = self:CreateToggle(main, "ESP Sheriff", sheriffState, function(state)
+
+    local toggle1 = self:CreateToggle(main, "ESP Sheriff", self.Options.ESPSheriff, function(state)
         self.Options.ESPSheriff = state
         if self.OnToggleChange then self:OnToggleChange("ESPSheriff", state) end
-    end, "ESPSheriff")
+    end)
     toggle1.Position = UDim2.new(0, 0, 0, y)
     y = y + 35
-    
-    local toggle2, ref2 = self:CreateToggle(main, "ESP Murder", murderState, function(state)
+
+    local toggle2 = self:CreateToggle(main, "ESP Murder", self.Options.ESPMurder, function(state)
         self.Options.ESPMurder = state
         if self.OnToggleChange then self:OnToggleChange("ESPMurder", state) end
-    end, "ESPMurder")
+    end)
     toggle2.Position = UDim2.new(0, 0, 0, y)
     y = y + 35
-    
-    local toggle3, ref3 = self:CreateToggle(main, "ESP Gun", gunState, function(state)
+
+    local toggle3 = self:CreateToggle(main, "ESP Gun", self.Options.ESPGun, function(state)
         self.Options.ESPGun = state
         if self.OnToggleChange then self:OnToggleChange("ESPGun", state) end
-    end, "ESPGun")
+    end)
     toggle3.Position = UDim2.new(0, 0, 0, y)
 end
 
 function ProtonUI:BuildTeleportPage()
-    self:CreateButton(self.GUI.MainArea, "Teleport Gun do Sheriff", function()
+    local main = self.GUI.MainArea
+    local btn = self:CreateButton(main, "Teleport Gun do Sheriff", function()
         if self.OnButtonClick then self:OnButtonClick("TeleportSheriffGun") end
-    end).Position = UDim2.new(0, 10, 0, 10)
+    end)
+    btn.Position = UDim2.new(0, 10, 0, 10)
 end
 
 function ProtonUI:BuildLogsPage()
-    self:CreateButton(self.GUI.MainArea, "Copiar Log (Sheriff & Murder)", function()
+    local main = self.GUI.MainArea
+    local btn = self:CreateButton(main, "Copiar Log (Sheriff & Murder)", function()
         if self.OnButtonClick then self:OnButtonClick("CopyLog") end
-    end).Position = UDim2.new(0, 10, 0, 10)
+    end)
+    btn.Position = UDim2.new(0, 10, 0, 10)
 end
 
 function ProtonUI:BuildMiscPage()
     local main = self.GUI.MainArea
     local y = 10
-    
-    local noclipState = self.Options.Noclip or false
-    
-    local toggle, ref = self:CreateToggle(main, "Noclip", noclipState, function(state)
+
+    local toggle = self:CreateToggle(main, "Noclip", self.Options.Noclip, function(state)
         self.Options.Noclip = state
         if self.OnToggleChange then self:OnToggleChange("Noclip", state) end
-    end, "Noclip")
+    end)
     toggle.Position = UDim2.new(0, 0, 0, y)
 end
 
 -- ======================
--- FECHAR E LIMPAR
+-- FECHAR
 -- ======================
 function ProtonUI:Close()
     if self.GUI.ScreenGui then
         local fade = createTween(self.GUI.MainFrame, {BackgroundTransparency = 1}, 0.3)
         fade:Play()
-        fade.Completed:Connect(function() 
+        fade.Completed:Connect(function()
             if self.GUI.ScreenGui then
-                self.GUI.ScreenGui:Destroy() 
+                self.GUI.ScreenGui:Destroy()
             end
         end)
     end
 end
 
 -- ======================
--- ATUALIZAÇÕES
+-- RODAPÉ
 -- ======================
 function ProtonUI:StartFooterUpdates()
     local Stats = game:GetService("Stats")
@@ -716,9 +734,25 @@ function ProtonUI:StartFooterUpdates()
     local frames = 0
     
     game:GetService("RunService").Heartbeat:Connect(function()
-        frames += 1
+        frames = frames + 1
         local now = tick()
         if now - last >= 1 then
             local fps = math.floor(frames / (now - last))
             if self.GUI.FPSLabel then
-                self.GUI.FPSLabel
+                self.GUI.FPSLabel.Text = "FPS: " .. fps
+            end
+            frames = 0
+            last = now
+        end
+        
+        if self.GUI.PingLabel then
+            self.GUI.PingLabel.Text = "Ping: " .. math.floor(Stats.Network.ServerStatsItem.DataPing:GetValue())
+        end
+        
+        if self.GUI.TimeLabel then
+            self.GUI.TimeLabel.Text = os.date("%H:%M:%S")
+        end
+    end)
+end
+
+return ProtonUI
