@@ -18,7 +18,6 @@ local ProtonUI = {
         Noclip = false,
         TargetPlayer = nil
     },
-    -- Armazenar referências dos elementos criados
     Elements = {}
 }
 
@@ -43,7 +42,7 @@ function ProtonUI:Notify(text, duration)
     
     local notif = Instance.new("Frame")
     notif.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    notif.BackgroundTransparency = 0 -- Fundo 100% opaco
+    notif.BackgroundTransparency = 0
     notif.BorderSizePixel = 0
     notif.Size = UDim2.new(0, 250, 0, 40)
     notif.Position = UDim2.new(1, -260, 0, 10)
@@ -93,7 +92,7 @@ function ProtonUI:CreateToggle(parent, text, default, callback, optionKey)
     label.TextColor3 = Color3.fromRGB(255, 255, 255)
     label.TextSize = 14
     label.TextXAlignment = Enum.TextXAlignment.Left
-    label.BackgroundTransparency = 1 -- Fundo transparente
+    label.BackgroundTransparency = 1
     label.Text = text
 
     local button = Instance.new("TextButton", frame)
@@ -131,7 +130,6 @@ function ProtonUI:CreateToggle(parent, text, default, callback, optionKey)
         toggleRef:SetState(not state)
     end)
 
-    -- Armazenar referência para restaurar estado
     if optionKey then
         self.Elements[optionKey] = toggleRef
     end
@@ -324,7 +322,7 @@ function ProtonUI:CreateGUI()
     main.Size = UDim2.new(0, 600, 0, 400)
     main.Position = UDim2.new(0.5, -300, 0.5, -200)
     main.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    main.BackgroundTransparency = 0 -- Fundo 100% opaco
+    main.BackgroundTransparency = 0
     main.BorderSizePixel = 0
     main.Parent = screenGui
     Instance.new("UICorner", main).CornerRadius = UDim.new(0, 8)
@@ -591,7 +589,7 @@ function ProtonUI:SwitchCategory(name)
         self.Callbacks[name]()
     end
 
-    -- Construir páginas padrão se não houver callback
+    -- Construir páginas padrão
     if name == "Aimbot" then self:BuildAimbotPage()
     elseif name == "ESP" then self:BuildESPPage()
     elseif name == "Teleport" then self:BuildTeleportPage()
@@ -601,13 +599,12 @@ function ProtonUI:SwitchCategory(name)
 end
 
 -- ======================
--- PÁGINAS PADRÃO
+-- PÁGINAS
 -- ======================
 function ProtonUI:BuildAimbotPage()
     local main = self.GUI.MainArea
     local y = 10
 
-    -- Restaurar estado salvo
     local aimbotState = self.Options.Aimbot or false
     local fovValue = self.Options.AimbotFOV or 100
 
@@ -692,4 +689,36 @@ function ProtonUI:BuildMiscPage()
         self.Options.Noclip = state
         if self.OnToggleChange then self:OnToggleChange("Noclip", state) end
     end, "Noclip")
-    toggle.Position = UDim2.new(0, 0, 
+    toggle.Position = UDim2.new(0, 0, 0, y)
+end
+
+-- ======================
+-- FECHAR E LIMPAR
+-- ======================
+function ProtonUI:Close()
+    if self.GUI.ScreenGui then
+        local fade = createTween(self.GUI.MainFrame, {BackgroundTransparency = 1}, 0.3)
+        fade:Play()
+        fade.Completed:Connect(function() 
+            if self.GUI.ScreenGui then
+                self.GUI.ScreenGui:Destroy() 
+            end
+        end)
+    end
+end
+
+-- ======================
+-- ATUALIZAÇÕES
+-- ======================
+function ProtonUI:StartFooterUpdates()
+    local Stats = game:GetService("Stats")
+    local last = tick()
+    local frames = 0
+    
+    game:GetService("RunService").Heartbeat:Connect(function()
+        frames += 1
+        local now = tick()
+        if now - last >= 1 then
+            local fps = math.floor(frames / (now - last))
+            if self.GUI.FPSLabel then
+                self.GUI.FPSLabel
