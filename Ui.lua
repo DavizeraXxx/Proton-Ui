@@ -1,7 +1,7 @@
 --[[
     Proton UI - Interface do Menu
-    GitHub: seu-usuario/ProtonUI
-    Versão: 2.1
+    GitHub: DavizeraXxx/Proton-Ui
+    Versão: 2.2
 ]]
 
 local ProtonUI = {
@@ -9,7 +9,17 @@ local ProtonUI = {
     SelectedCategory = "Aimbot",
     GUI = {},
     Callbacks = {},
-    Options = {}
+    Options = {
+        Aimbot = false,
+        AimbotFOV = 100,
+        ESPSheriff = false,
+        ESPMurder = false,
+        ESPGun = false,
+        Noclip = false,
+        TargetPlayer = nil
+    },
+    -- Armazenar referências dos elementos criados
+    Elements = {}
 }
 
 -- Serviços
@@ -33,6 +43,7 @@ function ProtonUI:Notify(text, duration)
     
     local notif = Instance.new("Frame")
     notif.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    notif.BackgroundTransparency = 0 -- Fundo 100% opaco
     notif.BorderSizePixel = 0
     notif.Size = UDim2.new(0, 250, 0, 40)
     notif.Position = UDim2.new(1, -260, 0, 10)
@@ -71,7 +82,7 @@ end
 -- ======================
 -- COMPONENTES UI
 -- ======================
-function ProtonUI:CreateToggle(parent, text, default, callback)
+function ProtonUI:CreateToggle(parent, text, default, callback, optionKey)
     local frame = Instance.new("Frame", parent)
     frame.Size = UDim2.new(1, -20, 0, 30)
     frame.BackgroundTransparency = 1
@@ -82,6 +93,7 @@ function ProtonUI:CreateToggle(parent, text, default, callback)
     label.TextColor3 = Color3.fromRGB(255, 255, 255)
     label.TextSize = 14
     label.TextXAlignment = Enum.TextXAlignment.Left
+    label.BackgroundTransparency = 1 -- Fundo transparente
     label.Text = text
 
     local button = Instance.new("TextButton", frame)
@@ -100,19 +112,34 @@ function ProtonUI:CreateToggle(parent, text, default, callback)
     Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
 
     local state = default
+    local toggleRef = {
+        Button = button,
+        Knob = knob,
+        Label = label,
+        State = state,
+        SetState = function(newState)
+            state = newState
+            local targetColor = state and Color3.fromRGB(30, 58, 95) or Color3.fromRGB(60, 60, 60)
+            local targetPos = state and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
+            createTween(button, {BackgroundColor3 = targetColor}, 0.2):Play()
+            createTween(knob, {Position = targetPos}, 0.2):Play()
+            if callback then callback(state) end
+        end
+    }
+
     button.MouseButton1Click:Connect(function()
-        state = not state
-        if callback then callback(state) end
-        local targetColor = state and Color3.fromRGB(30, 58, 95) or Color3.fromRGB(60, 60, 60)
-        local targetPos = state and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
-        createTween(button, {BackgroundColor3 = targetColor}, 0.2):Play()
-        createTween(knob, {Position = targetPos}, 0.2):Play()
+        toggleRef:SetState(not state)
     end)
 
-    return frame
+    -- Armazenar referência para restaurar estado
+    if optionKey then
+        self.Elements[optionKey] = toggleRef
+    end
+
+    return frame, toggleRef
 end
 
-function ProtonUI:CreateSlider(parent, text, min, max, default, callback)
+function ProtonUI:CreateSlider(parent, text, min, max, default, callback, optionKey)
     local frame = Instance.new("Frame", parent)
     frame.Size = UDim2.new(1, -20, 0, 50)
     frame.BackgroundTransparency = 1
@@ -122,6 +149,7 @@ function ProtonUI:CreateSlider(parent, text, min, max, default, callback)
     label.Font = Enum.Font.Gotham
     label.TextColor3 = Color3.fromRGB(255, 255, 255)
     label.TextSize = 14
+    label.BackgroundTransparency = 1
     label.Text = text .. ": " .. default
     label.TextXAlignment = Enum.TextXAlignment.Left
 
@@ -146,16 +174,25 @@ function ProtonUI:CreateSlider(parent, text, min, max, default, callback)
     Instance.new("UICorner", thumb).CornerRadius = UDim.new(1, 0)
 
     local dragging = false
+    local currentValue = default
+    local sliderRef = {
+        SetValue = function(val)
+            currentValue = val
+            local relX = (val - min) / (max - min)
+            fill.Size = UDim2.new(relX, 0, 1, 0)
+            thumb.Position = UDim2.new(relX, -8, 0.5, -8)
+            label.Text = text .. ": " .. val
+            if callback then callback(val) end
+        end
+    }
+
     local function updateSlider(input)
         local pos = input.Position.X
         local barAbsPos = bar.AbsolutePosition.X
         local barWidth = bar.AbsoluteSize.X
         local relX = math.clamp((pos - barAbsPos) / barWidth, 0, 1)
         local val = math.floor(min + (max - min) * relX)
-        fill.Size = UDim2.new(relX, 0, 1, 0)
-        thumb.Position = UDim2.new(relX, -8, 0.5, -8)
-        label.Text = text .. ": " .. val
-        if callback then callback(val) end
+        sliderRef:SetValue(val)
     end
 
     thumb.InputBegan:Connect(function(input)
@@ -179,7 +216,11 @@ function ProtonUI:CreateSlider(parent, text, min, max, default, callback)
         end
     end)
 
-    return frame
+    if optionKey then
+        self.Elements[optionKey] = sliderRef
+    end
+
+    return frame, sliderRef
 end
 
 function ProtonUI:CreateButton(parent, text, callback)
@@ -278,13 +319,13 @@ function ProtonUI:CreateGUI()
 
     self.GUI.ScreenGui = screenGui
 
-    -- Janela principal
+    -- Janela principal - Fundo 100% opaco
     local main = Instance.new("Frame")
     main.Size = UDim2.new(0, 600, 0, 400)
     main.Position = UDim2.new(0.5, -300, 0.5, -200)
     main.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    main.BackgroundTransparency = 0 -- Fundo 100% opaco
     main.BorderSizePixel = 0
-    main.BackgroundTransparency = 1
     main.Parent = screenGui
     Instance.new("UICorner", main).CornerRadius = UDim.new(0, 8)
     
@@ -300,6 +341,7 @@ function ProtonUI:CreateGUI()
     local titleBar = Instance.new("Frame")
     titleBar.Size = UDim2.new(1, 0, 0, 30)
     titleBar.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+    titleBar.BackgroundTransparency = 0
     titleBar.BorderSizePixel = 0
     titleBar.Parent = main
     Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 8)
@@ -355,6 +397,7 @@ function ProtonUI:CreateGUI()
     contentFrame.Size = UDim2.new(1, 0, 1, -30)
     contentFrame.Position = UDim2.new(0, 0, 0, 30)
     contentFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    contentFrame.BackgroundTransparency = 0
     contentFrame.BorderSizePixel = 0
     contentFrame.Parent = main
     self.GUI.ContentFrame = contentFrame
@@ -363,6 +406,7 @@ function ProtonUI:CreateGUI()
     local sideMenu = Instance.new("Frame")
     sideMenu.Size = UDim2.new(0, 80, 1, 0)
     sideMenu.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+    sideMenu.BackgroundTransparency = 0
     sideMenu.BorderSizePixel = 0
     sideMenu.Parent = contentFrame
     
@@ -376,6 +420,7 @@ function ProtonUI:CreateGUI()
     mainArea.Size = UDim2.new(1, -80, 1, 0)
     mainArea.Position = UDim2.new(0, 80, 0, 0)
     mainArea.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    mainArea.BackgroundTransparency = 0
     mainArea.BorderSizePixel = 0
     mainArea.Parent = contentFrame
     self.GUI.MainArea = mainArea
@@ -385,6 +430,7 @@ function ProtonUI:CreateGUI()
     footer.Size = UDim2.new(1, 0, 0, 20)
     footer.Position = UDim2.new(0, 0, 1, -20)
     footer.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+    footer.BackgroundTransparency = 0
     footer.BorderSizePixel = 0
     footer.Parent = contentFrame
     
@@ -399,6 +445,7 @@ function ProtonUI:CreateGUI()
     self.GUI.UsernameLabel.Font = Enum.Font.Gotham
     self.GUI.UsernameLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
     self.GUI.UsernameLabel.TextSize = 12
+    self.GUI.UsernameLabel.BackgroundTransparency = 1
     self.GUI.UsernameLabel.Text = LocalPlayer.Name
 
     self.GUI.FPSLabel = Instance.new("TextLabel", footer)
@@ -407,7 +454,26 @@ function ProtonUI:CreateGUI()
     self.GUI.FPSLabel.Font = Enum.Font.Gotham
     self.GUI.FPSLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
     self.GUI.FPSLabel.TextSize = 12
+    self.GUI.FPSLabel.BackgroundTransparency = 1
     self.GUI.FPSLabel.Text = "FPS: 0"
+
+    self.GUI.PingLabel = Instance.new("TextLabel", footer)
+    self.GUI.PingLabel.Position = UDim2.new(0, 170, 0, 0)
+    self.GUI.PingLabel.Size = UDim2.new(0, 60, 1, 0)
+    self.GUI.PingLabel.Font = Enum.Font.Gotham
+    self.GUI.PingLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    self.GUI.PingLabel.TextSize = 12
+    self.GUI.PingLabel.BackgroundTransparency = 1
+    self.GUI.PingLabel.Text = "Ping: 0"
+
+    self.GUI.TimeLabel = Instance.new("TextLabel", footer)
+    self.GUI.TimeLabel.Position = UDim2.new(0, 230, 0, 0)
+    self.GUI.TimeLabel.Size = UDim2.new(0, 60, 1, 0)
+    self.GUI.TimeLabel.Font = Enum.Font.Gotham
+    self.GUI.TimeLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    self.GUI.TimeLabel.TextSize = 12
+    self.GUI.TimeLabel.BackgroundTransparency = 1
+    self.GUI.TimeLabel.Text = "00:00:00"
 
     -- Arrastar janela
     local dragStart, startPos
@@ -443,9 +509,6 @@ function ProtonUI:CreateGUI()
     end)
 
     closeBtn.MouseButton1Click:Connect(function() self:Close() end)
-
-    -- Fade-in
-    createTween(main, {BackgroundTransparency = 0}, 0.4):Play()
 
     -- Construir categorias e primeira página
     self:CreateCategoryButtons()
@@ -544,16 +607,22 @@ function ProtonUI:BuildAimbotPage()
     local main = self.GUI.MainArea
     local y = 10
 
-    self:CreateToggle(main, "Aimbot (Silent)", false, function(state)
+    -- Restaurar estado salvo
+    local aimbotState = self.Options.Aimbot or false
+    local fovValue = self.Options.AimbotFOV or 100
+
+    local toggle, toggleRef = self:CreateToggle(main, "Aimbot (Silent)", aimbotState, function(state)
         self.Options.Aimbot = state
         if self.OnToggleChange then self:OnToggleChange("Aimbot", state) end
-    end).Position = UDim2.new(0, 0, 0, y)
+    end, "Aimbot")
+    toggle.Position = UDim2.new(0, 0, 0, y)
     y = y + 35
 
-    self:CreateSlider(main, "FOV", 10, 360, 100, function(val)
+    local slider, sliderRef = self:CreateSlider(main, "FOV", 10, 360, fovValue, function(val)
         self.Options.AimbotFOV = val
         if self.OnSliderChange then self:OnSliderChange("AimbotFOV", val) end
-    end).Position = UDim2.new(0, 0, 0, y)
+    end, "AimbotFOV")
+    slider.Position = UDim2.new(0, 0, 0, y)
     y = y + 55
 
     local label = Instance.new("TextLabel", main)
@@ -561,6 +630,7 @@ function ProtonUI:BuildAimbotPage()
     label.Position = UDim2.new(0, 10, 0, y)
     label.Font = Enum.Font.Gotham
     label.TextColor3 = Color3.fromRGB(200, 200, 200)
+    label.BackgroundTransparency = 1
     label.Text = "Alvo (opcional):"
     y = y + 25
 
@@ -575,22 +645,29 @@ function ProtonUI:BuildESPPage()
     local main = self.GUI.MainArea
     local y = 10
     
-    self:CreateToggle(main, "ESP Sheriff", false, function(state)
+    local sheriffState = self.Options.ESPSheriff or false
+    local murderState = self.Options.ESPMurder or false
+    local gunState = self.Options.ESPGun or false
+    
+    local toggle1, ref1 = self:CreateToggle(main, "ESP Sheriff", sheriffState, function(state)
         self.Options.ESPSheriff = state
         if self.OnToggleChange then self:OnToggleChange("ESPSheriff", state) end
-    end).Position = UDim2.new(0, 0, 0, y)
+    end, "ESPSheriff")
+    toggle1.Position = UDim2.new(0, 0, 0, y)
     y = y + 35
     
-    self:CreateToggle(main, "ESP Murder", false, function(state)
+    local toggle2, ref2 = self:CreateToggle(main, "ESP Murder", murderState, function(state)
         self.Options.ESPMurder = state
         if self.OnToggleChange then self:OnToggleChange("ESPMurder", state) end
-    end).Position = UDim2.new(0, 0, 0, y)
+    end, "ESPMurder")
+    toggle2.Position = UDim2.new(0, 0, 0, y)
     y = y + 35
     
-    self:CreateToggle(main, "ESP Gun", false, function(state)
+    local toggle3, ref3 = self:CreateToggle(main, "ESP Gun", gunState, function(state)
         self.Options.ESPGun = state
         if self.OnToggleChange then self:OnToggleChange("ESPGun", state) end
-    end).Position = UDim2.new(0, 0, 0, y)
+    end, "ESPGun")
+    toggle3.Position = UDim2.new(0, 0, 0, y)
 end
 
 function ProtonUI:BuildTeleportPage()
@@ -606,57 +683,13 @@ function ProtonUI:BuildLogsPage()
 end
 
 function ProtonUI:BuildMiscPage()
-    self:CreateToggle(self.GUI.MainArea, "Noclip", false, function(state)
+    local main = self.GUI.MainArea
+    local y = 10
+    
+    local noclipState = self.Options.Noclip or false
+    
+    local toggle, ref = self:CreateToggle(main, "Noclip", noclipState, function(state)
         self.Options.Noclip = state
         if self.OnToggleChange then self:OnToggleChange("Noclip", state) end
-    end).Position = UDim2.new(0, 0, 0, 10)
-end
-
--- ======================
--- FECHAR E LIMPAR
--- ======================
-function ProtonUI:Close()
-    if self.GUI.ScreenGui then
-        local fade = createTween(self.GUI.MainFrame, {BackgroundTransparency = 1}, 0.3)
-        fade:Play()
-        fade.Completed:Connect(function() 
-            if self.GUI.ScreenGui then
-                self.GUI.ScreenGui:Destroy() 
-            end
-        end)
-    end
-end
-
--- ======================
--- ATUALIZAÇÕES
--- ======================
-function ProtonUI:StartFooterUpdates()
-    local Stats = game:GetService("Stats")
-    local last = tick()
-    local frames = 0
-    
-    game:GetService("RunService").Heartbeat:Connect(function()
-        frames += 1
-        local now = tick()
-        if now - last >= 1 then
-            local fps = math.floor(frames / (now - last))
-            if self.GUI.FPSLabel then
-                self.GUI.FPSLabel.Text = "FPS: " .. fps
-            end
-            frames = 0
-            last = now
-        end
-        
-        if self.GUI.PingLabel then
-            self.GUI.PingLabel.Text = "Ping: " .. math.floor(Stats.Network.ServerStatsItem.DataPing:GetValue())
-        end
-        if self.GUI.TimeLabel then
-            self.GUI.TimeLabel.Text = os.date("%H:%M:%S")
-        end
-    end)
-end
-
--- ======================
--- EXPORTAR
--- ======================
-return ProtonUI
+    end, "Noclip")
+    toggle.Position = UDim2.new(0, 0, 
