@@ -1,7 +1,7 @@
 --[[
     Proton UI - Interface do Menu
     GitHub: DavizeraXxx/Proton-Ui
-    Versão: 4.2
+    Versão: 4.3
 ]]
 
 local ProtonUI = {
@@ -20,7 +20,8 @@ local ProtonUI = {
         ESPGun = false,
     },
     GUI = {},
-    Callbacks = {}
+    Callbacks = {},
+    Minimized = false
 }
 
 -- Serviços
@@ -222,6 +223,8 @@ function ProtonUI:CreateWindow()
     stroke.Color = Color3.fromRGB(30, 58, 95)
     stroke.Thickness = 1.5
     self.GUI.Main = main
+    self.GUI.OriginalSize = main.Size
+    self.GUI.OriginalPosition = main.Position
 
     -- Title Bar
     local titleBar = Instance.new("Frame")
@@ -240,17 +243,54 @@ function ProtonUI:CreateWindow()
     title.TextSize = 15
     title.TextXAlignment = Enum.TextXAlignment.Left
 
-    -- Close
-    local close = Instance.new("TextButton", titleBar)
-    close.Size = UDim2.new(0, 26, 0, 26)
-    close.Position = UDim2.new(1, -30, 0, 2)
-    close.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    close.Font = Enum.Font.GothamBold
-    close.Text = "×"
-    close.TextColor3 = Color3.new(1, 1, 1)
-    close.TextSize = 16
-    Instance.new("UICorner", close).CornerRadius = UDim.new(0, 4)
-    close.MouseButton1Click:Connect(function() self:Close() end)
+    -- Botão Minimizar (-)
+    local minimizeBtn = Instance.new("TextButton", titleBar)
+    minimizeBtn.Size = UDim2.new(0, 26, 0, 26)
+    minimizeBtn.Position = UDim2.new(1, -60, 0, 2)
+    minimizeBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    minimizeBtn.Font = Enum.Font.GothamBold
+    minimizeBtn.Text = "−"
+    minimizeBtn.TextColor3 = Color3.new(1, 1, 1)
+    minimizeBtn.TextSize = 18
+    Instance.new("UICorner", minimizeBtn).CornerRadius = UDim.new(0, 4)
+    self.GUI.MinimizeBtn = minimizeBtn
+
+    -- Botão Fechar (×)
+    local closeBtn = Instance.new("TextButton", titleBar)
+    closeBtn.Size = UDim2.new(0, 26, 0, 26)
+    closeBtn.Position = UDim2.new(1, -30, 0, 2)
+    closeBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    closeBtn.Font = Enum.Font.GothamBold
+    closeBtn.Text = "×"
+    closeBtn.TextColor3 = Color3.new(1, 1, 1)
+    closeBtn.TextSize = 16
+    Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 4)
+    closeBtn.MouseButton1Click:Connect(function() self:Close() end)
+
+    -- Minimizar
+    minimizeBtn.MouseButton1Click:Connect(function()
+        self.Minimized = not self.Minimized
+        local content = self.GUI.ContentContainer
+        local tabs = self.GUI.TabButtons
+        
+        if self.Minimized then
+            -- Minimizar: esconder tudo, deixar só a barra de título
+            tween(main, {Size = UDim2.new(0, 550, 0, 30)}, 0.3)
+            if content then content.Visible = false end
+            for _, btn in pairs(tabs or {}) do
+                btn.Visible = false
+            end
+            minimizeBtn.Text = "+"
+        else
+            -- Restaurar
+            tween(main, {Size = self.GUI.OriginalSize}, 0.3)
+            if content then content.Visible = true end
+            for _, btn in pairs(tabs or {}) do
+                btn.Visible = true
+            end
+            minimizeBtn.Text = "−"
+        end
+    end)
 
     -- Tabs
     local tabs = {"Aimbot", "ESP", "Teleport", "Logs", "Misc"}
@@ -281,7 +321,7 @@ function ProtonUI:CreateWindow()
     tabBtns[1].BackgroundColor3 = Color3.fromRGB(30, 58, 95)
     self.GUI.TabButtons = tabBtns
 
-    -- Content Container (com UIListLayout)
+    -- Content Container
     local contentContainer = Instance.new("Frame")
     contentContainer.Size = UDim2.new(1, -20, 1, -75)
     contentContainer.Position = UDim2.new(0, 10, 0, 70)
@@ -291,7 +331,7 @@ function ProtonUI:CreateWindow()
     Instance.new("UICorner", contentContainer).CornerRadius = UDim.new(0, 4)
     self.GUI.ContentContainer = contentContainer
 
-    -- ScrollingFrame dentro do container
+    -- ScrollingFrame
     local content = Instance.new("ScrollingFrame")
     content.Size = UDim2.new(1, 0, 1, 0)
     content.BackgroundTransparency = 1
@@ -302,7 +342,7 @@ function ProtonUI:CreateWindow()
     content.Parent = contentContainer
     self.GUI.Content = content
 
-    -- UIListLayout para organizar automaticamente
+    -- UIListLayout
     local layout = Instance.new("UIListLayout")
     layout.SortOrder = Enum.SortOrder.LayoutOrder
     layout.Padding = UDim.new(0, 5)
@@ -325,6 +365,8 @@ function ProtonUI:CreateWindow()
         if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             local delta = input.Position - dragStart
             main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            -- Atualizar posição original para restaurar corretamente
+            self.GUI.OriginalPosition = main.Position
         end
     end)
 
@@ -334,21 +376,17 @@ function ProtonUI:CreateWindow()
 end
 
 -- ======================
--- CARREGAR TAB (COM UIListLayout)
+-- CARREGAR TAB
 -- ======================
 function ProtonUI:LoadTab(name)
     local content = self.GUI.Content
     
-    -- Limpar conteúdo (manter o UIListLayout)
     for _, child in pairs(content:GetChildren()) do
         if not child:IsA("UIListLayout") then
             child:Destroy()
         end
     end
-    
-    local layout = content:FindFirstChildOfClass("UIListLayout")
 
-    -- Aimbot Tab
     if name == "Aimbot" then
         self:CreateToggle(content, "Aimbot", self.Options.Aimbot, function(v)
             self.Options.Aimbot = v
@@ -365,7 +403,6 @@ function ProtonUI:LoadTab(name)
             if self.Callbacks.OnToggle then self.Callbacks:OnToggle("ShowFOV", v) end
         end)
         
-    -- ESP Tab
     elseif name == "ESP" then
         self:CreateToggle(content, "Enable ESP", self.Options.ESPEnabled, function(v)
             self.Options.ESPEnabled = v
@@ -392,13 +429,11 @@ function ProtonUI:LoadTab(name)
             if self.Callbacks.OnToggle then self.Callbacks:OnToggle("ESPDistance", v) end
         end)
         
-    -- Teleport Tab
     elseif name == "Teleport" then
         self:CreateButton(content, "Teleport to Gun", function()
             if self.Callbacks.OnButton then self.Callbacks:OnButton("TeleportToGun") end
         end)
         
-        -- Divisor
         local divider = Instance.new("Frame", content)
         divider.Size = UDim2.new(1, -20, 0, 1)
         divider.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
@@ -421,13 +456,11 @@ function ProtonUI:LoadTab(name)
             end
         end
         
-    -- Logs Tab
     elseif name == "Logs" then
         self:CreateButton(content, "Copy Team Logs", function()
             if self.Callbacks.OnButton then self.Callbacks:OnButton("CopyLogs") end
         end)
         
-        -- Divisor
         local divider = Instance.new("Frame", content)
         divider.Size = UDim2.new(1, -20, 0, 1)
         divider.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
@@ -444,17 +477,11 @@ function ProtonUI:LoadTab(name)
         
         for _, player in pairs(Players:GetPlayers()) do
             if player ~= LocalPlayer then
-                local team, color = "Innocent", Color3.fromRGB(50, 255, 50)
-                if player.Character and player.Character:FindFirstChild("Knife") then
-                    team, color = "Murderer", Color3.fromRGB(255, 50, 50)
-                elseif player.Character and player.Character:FindFirstChild("Gun") then
-                    team, color = "Sheriff", Color3.fromRGB(50, 100, 255)
-                end
+                local team, color = self:GetPlayerTeam(player)
                 self:CreatePlayerInfo(content, player.Name, team, color)
             end
         end
         
-    -- Misc Tab
     elseif name == "Misc" then
         self:CreateToggle(content, "Noclip", self.Options.Noclip, function(v)
             self.Options.Noclip = v
@@ -467,7 +494,7 @@ function ProtonUI:LoadTab(name)
         end)
     end
     
-    -- Atualizar CanvasSize baseado no conteúdo
+    -- Atualizar CanvasSize
     task.wait(0.1)
     local totalHeight = 0
     for _, child in pairs(content:GetChildren()) do
@@ -476,6 +503,22 @@ function ProtonUI:LoadTab(name)
         end
     end
     content.CanvasSize = UDim2.new(0, 0, 0, math.max(totalHeight + 20, content.Size.Y.Offset))
+end
+
+-- ======================
+-- UTILITÁRIO PARA TEAM
+-- ======================
+function ProtonUI:GetPlayerTeam(player)
+    local char = player.Character
+    local bp = player:FindFirstChild("Backpack")
+    
+    if (bp and bp:FindFirstChild("Knife")) or (char and char:FindFirstChild("Knife")) then
+        return "Murderer", Color3.fromRGB(255, 50, 50)
+    elseif (bp and bp:FindFirstChild("Gun")) or (char and char:FindFirstChild("Gun")) then
+        return "Sheriff", Color3.fromRGB(50, 100, 255)
+    else
+        return "Innocent", Color3.fromRGB(50, 255, 50)
+    end
 end
 
 -- ======================
