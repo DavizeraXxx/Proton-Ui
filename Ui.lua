@@ -1,7 +1,7 @@
 --[[
     Proton UI - Interface do Menu
     GitHub: DavizeraXxx/Proton-Ui
-    Versão: 4.1
+    Versão: 4.2
 ]]
 
 local ProtonUI = {
@@ -52,7 +52,7 @@ function ProtonUI:Notify(text, duration)
 end
 
 -- ======================
--- COMPONENTES (COM POSICIONAMENTO)
+-- COMPONENTES
 -- ======================
 function ProtonUI:CreateToggle(parent, text, option, callback)
     local frame = Instance.new("Frame")
@@ -210,8 +210,8 @@ function ProtonUI:CreateWindow()
 
     -- Main
     local main = Instance.new("Frame")
-    main.Size = UDim2.new(0, 550, 0, 380)
-    main.Position = UDim2.new(0.5, -275, 0.5, -190)
+    main.Size = UDim2.new(0, 550, 0, 400)
+    main.Position = UDim2.new(0.5, -275, 0.5, -200)
     main.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
     main.BorderSizePixel = 0
     main.ClipsDescendants = true
@@ -281,18 +281,32 @@ function ProtonUI:CreateWindow()
     tabBtns[1].BackgroundColor3 = Color3.fromRGB(30, 58, 95)
     self.GUI.TabButtons = tabBtns
 
-    -- Content
+    -- Content Container (com UIListLayout)
+    local contentContainer = Instance.new("Frame")
+    contentContainer.Size = UDim2.new(1, -20, 1, -75)
+    contentContainer.Position = UDim2.new(0, 10, 0, 70)
+    contentContainer.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    contentContainer.BorderSizePixel = 0
+    contentContainer.Parent = main
+    Instance.new("UICorner", contentContainer).CornerRadius = UDim.new(0, 4)
+    self.GUI.ContentContainer = contentContainer
+
+    -- ScrollingFrame dentro do container
     local content = Instance.new("ScrollingFrame")
-    content.Size = UDim2.new(1, -20, 1, -75)
-    content.Position = UDim2.new(0, 10, 0, 70)
-    content.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    content.Size = UDim2.new(1, 0, 1, 0)
+    content.BackgroundTransparency = 1
     content.BorderSizePixel = 0
     content.ScrollBarThickness = 4
     content.ScrollBarImageColor3 = Color3.fromRGB(30, 58, 95)
     content.CanvasSize = UDim2.new(0, 0, 0, 0)
-    content.Parent = main
-    Instance.new("UICorner", content).CornerRadius = UDim.new(0, 4)
+    content.Parent = contentContainer
     self.GUI.Content = content
+
+    -- UIListLayout para organizar automaticamente
+    local layout = Instance.new("UIListLayout")
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Padding = UDim.new(0, 5)
+    layout.Parent = content
 
     -- Dragging
     local dragging, dragStart, startPos
@@ -320,141 +334,113 @@ function ProtonUI:CreateWindow()
 end
 
 -- ======================
--- CARREGAR TAB (COM POSICIONAMENTO CORRETO)
+-- CARREGAR TAB (COM UIListLayout)
 -- ======================
 function ProtonUI:LoadTab(name)
     local content = self.GUI.Content
-    for _, c in pairs(content:GetChildren()) do c:Destroy() end
     
-    local y = 10
-    local selfRef = self
+    -- Limpar conteúdo (manter o UIListLayout)
+    for _, child in pairs(content:GetChildren()) do
+        if not child:IsA("UIListLayout") then
+            child:Destroy()
+        end
+    end
+    
+    local layout = content:FindFirstChildOfClass("UIListLayout")
 
     -- Aimbot Tab
     if name == "Aimbot" then
-        local t1 = self:CreateToggle(content, "Aimbot", self.Options.Aimbot, function(v)
+        self:CreateToggle(content, "Aimbot", self.Options.Aimbot, function(v)
             self.Options.Aimbot = v
             if self.Callbacks.OnToggle then self.Callbacks:OnToggle("Aimbot", v) end
         end)
-        t1.Position = UDim2.new(0, 0, 0, y)
-        y = y + 35
         
-        local s1 = self:CreateSlider(content, "FOV", 50, 300, self.Options.AimbotFOV, function(v)
+        self:CreateSlider(content, "FOV", 50, 300, self.Options.AimbotFOV, function(v)
             self.Options.AimbotFOV = v
             if self.Callbacks.OnSlider then self.Callbacks:OnSlider("AimbotFOV", v) end
         end)
-        s1.Position = UDim2.new(0, 0, 0, y)
-        y = y + 55
         
-        local t2 = self:CreateToggle(content, "Show FOV Circle", self.Options.ShowFOV, function(v)
+        self:CreateToggle(content, "Show FOV Circle", self.Options.ShowFOV, function(v)
             self.Options.ShowFOV = v
             if self.Callbacks.OnToggle then self.Callbacks:OnToggle("ShowFOV", v) end
         end)
-        t2.Position = UDim2.new(0, 0, 0, y)
-        y = y + 35
         
     -- ESP Tab
     elseif name == "ESP" then
-        local t1 = self:CreateToggle(content, "Enable ESP", self.Options.ESPEnabled, function(v)
+        self:CreateToggle(content, "Enable ESP", self.Options.ESPEnabled, function(v)
             self.Options.ESPEnabled = v
             if self.Callbacks.OnToggle then self.Callbacks:OnToggle("ESPEnabled", v) end
         end)
-        t1.Position = UDim2.new(0, 0, 0, y)
-        y = y + 35
         
-        local t2 = self:CreateToggle(content, "Box ESP", self.Options.ESPBox, function(v)
+        self:CreateToggle(content, "Box ESP", self.Options.ESPBox, function(v)
             self.Options.ESPBox = v
             if self.Callbacks.OnToggle then self.Callbacks:OnToggle("ESPBox", v) end
         end)
-        t2.Position = UDim2.new(0, 0, 0, y)
-        y = y + 35
         
-        local t3 = self:CreateToggle(content, "Skeleton ESP", self.Options.ESPSkeleton, function(v)
+        self:CreateToggle(content, "Skeleton ESP", self.Options.ESPSkeleton, function(v)
             self.Options.ESPSkeleton = v
             if self.Callbacks.OnToggle then self.Callbacks:OnToggle("ESPSkeleton", v) end
         end)
-        t3.Position = UDim2.new(0, 0, 0, y)
-        y = y + 35
         
-        local t4 = self:CreateToggle(content, "Show Name", self.Options.ESPName, function(v)
+        self:CreateToggle(content, "Show Name", self.Options.ESPName, function(v)
             self.Options.ESPName = v
             if self.Callbacks.OnToggle then self.Callbacks:OnToggle("ESPName", v) end
         end)
-        t4.Position = UDim2.new(0, 0, 0, y)
-        y = y + 35
         
-        local t5 = self:CreateToggle(content, "Show Distance", self.Options.ESPDistance, function(v)
+        self:CreateToggle(content, "Show Distance", self.Options.ESPDistance, function(v)
             self.Options.ESPDistance = v
             if self.Callbacks.OnToggle then self.Callbacks:OnToggle("ESPDistance", v) end
         end)
-        t5.Position = UDim2.new(0, 0, 0, y)
-        y = y + 35
-        
-        content.CanvasSize = UDim2.new(0, 0, 0, y + 20)
         
     -- Teleport Tab
     elseif name == "Teleport" then
-        local b1 = self:CreateButton(content, "Teleport to Gun", function()
+        self:CreateButton(content, "Teleport to Gun", function()
             if self.Callbacks.OnButton then self.Callbacks:OnButton("TeleportToGun") end
         end)
-        b1.Position = UDim2.new(0, 0, 0, y)
-        y = y + 40
         
         -- Divisor
         local divider = Instance.new("Frame", content)
         divider.Size = UDim2.new(1, -20, 0, 1)
-        divider.Position = UDim2.new(0, 10, 0, y)
         divider.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
         divider.BorderSizePixel = 0
-        y = y + 15
         
         local label = Instance.new("TextLabel", content)
         label.Size = UDim2.new(1, -20, 0, 20)
-        label.Position = UDim2.new(0, 10, 0, y)
         label.Font = Enum.Font.GothamBold
         label.Text = "Teleport para Jogador:"
         label.TextColor3 = Color3.fromRGB(150, 150, 150)
         label.TextSize = 12
         label.BackgroundTransparency = 1
         label.TextXAlignment = Enum.TextXAlignment.Left
-        y = y + 25
         
         for _, player in pairs(Players:GetPlayers()) do
             if player ~= LocalPlayer then
-                local b = self:CreateButton(content, player.Name, function()
+                self:CreateButton(content, player.Name, function()
                     if self.Callbacks.OnButton then self.Callbacks:OnButton("TeleportToPlayer", player) end
                 end)
-                b.Position = UDim2.new(0, 0, 0, y)
-                y = y + 40
             end
         end
-        content.CanvasSize = UDim2.new(0, 0, 0, y + 20)
         
     -- Logs Tab
     elseif name == "Logs" then
-        local b1 = self:CreateButton(content, "Copy Team Logs", function()
+        self:CreateButton(content, "Copy Team Logs", function()
             if self.Callbacks.OnButton then self.Callbacks:OnButton("CopyLogs") end
         end)
-        b1.Position = UDim2.new(0, 0, 0, y)
-        y = y + 40
         
         -- Divisor
         local divider = Instance.new("Frame", content)
         divider.Size = UDim2.new(1, -20, 0, 1)
-        divider.Position = UDim2.new(0, 10, 0, y)
         divider.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
         divider.BorderSizePixel = 0
-        y = y + 15
         
         local label = Instance.new("TextLabel", content)
         label.Size = UDim2.new(1, -20, 0, 20)
-        label.Position = UDim2.new(0, 10, 0, y)
         label.Font = Enum.Font.GothamBold
         label.Text = "Jogadores:"
         label.TextColor3 = Color3.fromRGB(150, 150, 150)
         label.TextSize = 12
         label.BackgroundTransparency = 1
         label.TextXAlignment = Enum.TextXAlignment.Left
-        y = y + 25
         
         for _, player in pairs(Players:GetPlayers()) do
             if player ~= LocalPlayer then
@@ -464,29 +450,32 @@ function ProtonUI:LoadTab(name)
                 elseif player.Character and player.Character:FindFirstChild("Gun") then
                     team, color = "Sheriff", Color3.fromRGB(50, 100, 255)
                 end
-                local info = self:CreatePlayerInfo(content, player.Name, team, color)
-                info.Position = UDim2.new(0, 0, 0, y)
-                y = y + 30
+                self:CreatePlayerInfo(content, player.Name, team, color)
             end
         end
-        content.CanvasSize = UDim2.new(0, 0, 0, y + 20)
         
     -- Misc Tab
     elseif name == "Misc" then
-        local t1 = self:CreateToggle(content, "Noclip", self.Options.Noclip, function(v)
+        self:CreateToggle(content, "Noclip", self.Options.Noclip, function(v)
             self.Options.Noclip = v
             if self.Callbacks.OnToggle then self.Callbacks:OnToggle("Noclip", v) end
         end)
-        t1.Position = UDim2.new(0, 0, 0, y)
-        y = y + 35
         
-        local t2 = self:CreateToggle(content, "ESP Gun (Dropped)", self.Options.ESPGun, function(v)
+        self:CreateToggle(content, "ESP Gun (Dropped)", self.Options.ESPGun, function(v)
             self.Options.ESPGun = v
             if self.Callbacks.OnToggle then self.Callbacks:OnToggle("ESPGun", v) end
         end)
-        t2.Position = UDim2.new(0, 0, 0, y)
-        y = y + 35
     end
+    
+    -- Atualizar CanvasSize baseado no conteúdo
+    task.wait(0.1)
+    local totalHeight = 0
+    for _, child in pairs(content:GetChildren()) do
+        if child:IsA("Frame") or child:IsA("TextButton") or child:IsA("TextLabel") then
+            totalHeight = totalHeight + child.Size.Y.Offset + 5
+        end
+    end
+    content.CanvasSize = UDim2.new(0, 0, 0, math.max(totalHeight + 20, content.Size.Y.Offset))
 end
 
 -- ======================
