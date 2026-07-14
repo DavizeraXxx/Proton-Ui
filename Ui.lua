@@ -1,7 +1,7 @@
 --[[
     Proton UI - Interface do Menu
     GitHub: DavizeraXxx/Proton-Ui
-    Versão: 4.3
+    Versão: 4.4
 ]]
 
 local ProtonUI = {
@@ -199,6 +199,30 @@ function ProtonUI:CreatePlayerInfo(parent, player, team, color)
 end
 
 -- ======================
+-- FUNÇÃO: ABRIR PROTON MINI (APENAS CHAMADA)
+-- ======================
+local function OpenProtonMini()
+    -- Verificar se o Proton Mini já está carregado
+    if not _G.ProtonMini then
+        pcall(function()
+            _G.ProtonMini = loadstring(game:HttpGet("https://raw.githubusercontent.com/DavizeraXxx/mm2/main/mm2.lua"))()
+            if _G.ProtonMini then
+                print("[ProtonUI] Proton Mini carregado!")
+            end
+        end)
+    end
+    
+    -- Abrir o Proton Mini
+    if _G.ProtonMini and _G.ProtonMini.GUI and _G.ProtonMini.GUI.Main then
+        _G.ProtonMini.GUI.Main.Visible = true
+        _G.ProtonMini.Open = true
+        ProtonUI:Notify("📱 Proton Mini aberto!")
+    else
+        ProtonUI:Notify("❌ Erro ao abrir Proton Mini!")
+    end
+end
+
+-- ======================
 -- CONSTRUIR UI
 -- ======================
 function ProtonUI:CreateWindow()
@@ -274,7 +298,6 @@ function ProtonUI:CreateWindow()
         local tabs = self.GUI.TabButtons
         
         if self.Minimized then
-            -- Minimizar: esconder tudo, deixar só a barra de título
             tween(main, {Size = UDim2.new(0, 550, 0, 30)}, 0.3)
             if content then content.Visible = false end
             for _, btn in pairs(tabs or {}) do
@@ -282,7 +305,6 @@ function ProtonUI:CreateWindow()
             end
             minimizeBtn.Text = "+"
         else
-            -- Restaurar
             tween(main, {Size = self.GUI.OriginalSize}, 0.3)
             if content then content.Visible = true end
             for _, btn in pairs(tabs or {}) do
@@ -365,7 +387,6 @@ function ProtonUI:CreateWindow()
         if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             local delta = input.Position - dragStart
             main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-            -- Atualizar posição original para restaurar corretamente
             self.GUI.OriginalPosition = main.Position
         end
     end)
@@ -492,6 +513,12 @@ function ProtonUI:LoadTab(name)
             self.Options.ESPGun = v
             if self.Callbacks.OnToggle then self.Callbacks:OnToggle("ESPGun", v) end
         end)
+        
+        -- ===== BOTÃO: ABRIR PROTON MINI (APENAS CHAMADA) =====
+        self:CreateButton(content, "📱 Abrir Proton Mini", function()
+            OpenProtonMini()
+        end)
+        -- ======================================================
     end
     
     -- Atualizar CanvasSize
